@@ -45,7 +45,8 @@ Event rules:
 - game_end: true ONLY for definitive story endings`;
 
   // System prompt specifically for narrating dice outcomes
-  const DICE_OUTCOME_PROMPT = `You are continuing as the RPG narrator. The player just attempted an action that required a dice roll. Based on the result, narrate what happens next.
+  // HP and XP are handled mechanically by the game engine — the AI only narrates.
+  const DICE_OUTCOME_PROMPT = `You are continuing as the RPG narrator. The player just attempted an action that required a dice roll. The game engine has already calculated HP loss and XP gain — your ONLY job is to narrate what happened.
 
 Respond with valid JSON only:
 {
@@ -54,17 +55,16 @@ Respond with valid JSON only:
   "item_lost": null or "string",
   "new_npc": null or { "name": "string", "role": "string", "personality": "string", "appearance": "string", "relationship": 0 },
   "npc_updates": null or [{ "name": "string", "change": number, "reason": "string" }],
-  "hp_change": number,
-  "xp_gained": number,
   "game_end": false
 }
 
 Rules:
-- On SUCCESS: Narrate a favorable outcome. Be satisfying but brief (3-5 sentences). Award 10-20 XP.
-- On FAILURE with "basic" severity: Narrate a setback or complication but no HP loss. 5 XP for the attempt.
-- On FAILURE with "important" severity: Narrate taking damage or a serious consequence. Apply hp_change (negative, typically -5 to -15 based on difficulty). 5 XP for the attempt.
+- On SUCCESS: Narrate a favorable outcome. Be satisfying but brief (3-5 sentences).
+- On FAILURE with "basic" severity: Narrate a setback or complication. No damage was taken.
+- On FAILURE with "important" severity: Narrate taking damage or a serious consequence. The HP loss amount is provided — reference the injury/damage in your narration.
 - ALWAYS end with a new open-ended situation that demands the player's next action.
-- Keep it concise. The player just waited for a dice roll — don't make them read a novel.`;
+- Keep it concise. The player just waited for a dice roll — don't make them read a novel.
+- Do NOT include hp_change or xp_gained in your response — the engine handles those.`;
 
   const WORLD_GEN_SYSTEM_PROMPT = `You are a world builder for a text-based RPG. Generate a unique, compelling world based on the player's preferences. Respond with valid JSON only — no markdown, no code fences.
 
@@ -209,7 +209,7 @@ Note: Keep "startingScenario" brief — it's a scene SETUP that the narrator wil
     return { valid: errors.length === 0, data: parsed, errors };
   }
 
-  // Validate dice outcome response (simpler — no event expected)
+  // Validate dice outcome response (narration only — no hp_change/xp_gained expected)
   function validateDiceOutcome(raw) {
     debugLog('VALIDATE', 'Validating dice outcome response...');
     let cleaned = raw.trim();
@@ -222,14 +222,12 @@ Note: Keep "startingScenario" brief — it's a scene SETUP that the narrator wil
       if (!parsed.story || typeof parsed.story !== 'string') {
         parsed.story = cleaned;
       }
-      if (parsed.hp_change === undefined) parsed.hp_change = 0;
-      if (parsed.xp_gained === undefined) parsed.xp_gained = 0;
       if (parsed.game_end === undefined) parsed.game_end = false;
       debugLog('VALIDATE', 'Dice outcome validated OK');
       return { valid: true, data: parsed };
     } catch (e) {
       debugLog('VALIDATE', `Dice outcome JSON parse failed: ${e.message}`, raw);
-      return { valid: false, data: { story: raw, hp_change: 0, xp_gained: 5, game_end: false } };
+      return { valid: false, data: { story: raw, game_end: false } };
     }
   }
 
@@ -291,7 +289,8 @@ Note: Keep "startingScenario" brief — it's a scene SETUP that the narrator wil
   }
 
   // Build messages for requesting dice outcome narration
-  function buildDiceOutcomeMessages(event, diceResult) {
+  // hpLost and xpGained are the mechanical values already applied by the engine
+  function buildDiceOutcomeMessages(event, diceResult, hpLost, xpGained) {
     const game = GameState.getGame();
     const messages = [];
 
@@ -311,8 +310,19 @@ Note: Keep "startingScenario" brief — it's a scene SETUP that the narrator wil
       }
     });
 
-    // The dice result message
-    const outcomeMsg = `[DICE RESULT] The player attempted a ${event.type} — ${Utils.statFullName(event.stat)} check (DC ${event.difficulty}, severity: ${event.severity}). They rolled ${diceResult.roll} + ${diceResult.bonus} bonus = ${diceResult.total}. Result: ${diceResult.passed ? 'SUCCESS' : 'FAILURE'}. ${event.success_hint && diceResult.passed ? 'Hint: ' + event.success_hint : ''}${event.fail_hint && !diceResult.passed ? 'Hint: ' + event.fail_hint : ''}. Narrate the outcome.`;
+    // The dice result message — includes what the engine already applied
+    let outcomeMsg = `[DICE RESULT] The player attempted a ${event.type} — ${Utils.statFullName(event.stat)} check (DC ${event.difficulty}, severity: ${event.severity}). They rolled ${diceResult.roll} + ${diceResult.bonus} bonus = ${diceResult.total}. Result: ${diceResult.passed ? 'SUCCESS' : 'FAILURE'}.`;
+
+    if (diceResult.passed) {
+      outcomeMsg += ` The player gained ${xpGained} XP.`;
+      if (event.success_hint) outcomeMsg += ` Hint: ${event.success_hint}.`;
+    } else {
+      outcomeMsg += ` The player gained ${xpGained} XP for the attempt.`;
+      if (hpLost < 0) outcomeMsg += ` They took ${Math.abs(hpLost)} HP damage (now ${GameState.getCharacter().hp} HP).`;
+      if (event.fail_hint) outcomeMsg += ` Hint: ${event.fail_hint}.`;
+    }
+
+    outcomeMsg += ' Narrate the outcome. Do NOT include hp_change or xp_gained — the engine already handled those.';
 
     messages.push({ role: 'user', content: outcomeMsg });
 

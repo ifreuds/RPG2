@@ -208,6 +208,23 @@ const GameEngine = (() => {
     UI.updateHUD();
   }
 
+  // Calculate HP loss mechanically based on difficulty and severity
+  function calculateHPLoss(event) {
+    if (event.severity !== 'important') return 0;
+    // Scale HP loss with difficulty: DC 8 = -5, DC 12 = -7, DC 16 = -9, DC 20 = -12
+    return -(Math.floor(event.difficulty / 3) + 2);
+  }
+
+  // Calculate XP gain mechanically based on pass/fail and difficulty
+  function calculateXP(passed, difficulty) {
+    if (passed) {
+      // Scale with difficulty: DC 8 = 10 XP, DC 12 = 15 XP, DC 16 = 20 XP, DC 20 = 25 XP
+      return 5 + Math.floor(difficulty / 2) * 2;
+    }
+    // Flat 5 XP for attempting, regardless of difficulty
+    return 5;
+  }
+
   // Handle a dice-based event (stat_check or combat)
   // Returns { request, response } for the dice outcome, or null
   async function handleDiceEvent(event, storyContainer) {
@@ -218,12 +235,26 @@ const GameEngine = (() => {
     const diceResult = await waitForDiceRoll(event);
     if (!diceResult) return null;
 
-    // Now send the dice result to the AI for outcome narration
+    // MECHANICAL: Apply HP and XP immediately based on game rules
+    let hpLost = 0;
+    const xpGained = calculateXP(diceResult.passed, event.difficulty);
+
+    if (!diceResult.passed) {
+      hpLost = calculateHPLoss(event);
+      if (hpLost < 0) {
+        applyHP(hpLost);
+      }
+    }
+    applyXP(xpGained);
+
+    debugLog('GAME_EVT', `Mechanical result: HP ${hpLost}, XP +${xpGained}`);
+
+    // Now send the dice result to the AI for NARRATION ONLY
     try {
       showGameplayLoading(true);
 
       const systemPrompt = AI.buildDiceOutcomeContext();
-      const { messages, outcomeMsg } = AI.buildDiceOutcomeMessages(event, diceResult);
+      const { messages, outcomeMsg } = AI.buildDiceOutcomeMessages(event, diceResult, hpLost, xpGained);
 
       const raw = await AI.sendPrompt(messages, systemPrompt);
       const { data: outcomeData } = AI.validateDiceOutcome(raw);
@@ -235,15 +266,7 @@ const GameEngine = (() => {
         await UI.addStoryNarration(storyContainer, outcomeData.story);
       }
 
-      // Apply HP/XP from the AI's outcome response
-      if (outcomeData.hp_change && outcomeData.hp_change !== 0) {
-        applyHP(outcomeData.hp_change);
-      }
-      if (outcomeData.xp_gained && outcomeData.xp_gained > 0) {
-        applyXP(outcomeData.xp_gained);
-      }
-
-      // Handle items/NPCs from outcome
+      // Handle items/NPCs from outcome (story-driven, not mechanical)
       if (outcomeData.item_gained) {
         GameState.getGame().items.push(outcomeData.item_gained);
         UI.showToast(`Item found: ${outcomeData.item_gained}`, 'success');
@@ -262,17 +285,11 @@ const GameEngine = (() => {
       debugLog('ERROR', `Dice outcome request failed: ${err.message}`, err.stack);
       showGameplayLoading(false);
 
-      // Fallback: apply mechanical consequences without AI narration
+      // Fallback: HP/XP already applied above, just show basic narration
       const fallbackStory = diceResult.passed
         ? 'You succeed in your attempt.'
         : 'Your attempt fails.';
       await UI.addStoryNarration(storyContainer, fallbackStory);
-
-      if (!diceResult.passed && event.severity === 'important') {
-        const hpLoss = -(Math.floor(event.difficulty / 3) + 2);
-        applyHP(hpLoss);
-      }
-      applyXP(diceResult.passed ? 15 : 5);
 
       return null;
     }

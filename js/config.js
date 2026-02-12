@@ -26,6 +26,6 @@ const AI_PROVIDERS = {
   grok: {
     name: 'Grok',
     endpoint: 'https://api.x.ai/v1/chat/completions',
-    defaultModel: 'grok-3-mini-fast'
+    defaultModel: 'grok-4-1-fast'
   }
 };
