@@ -23,7 +23,7 @@ const GameEngine = (() => {
     const messages = [
       {
         role: 'user',
-        content: `Begin the adventure. Setting: ${world.startingScenario}. My character "${char.name}" enters the scene. Set the opening scene concisely — describe where I am and what's immediately happening, then leave me at a moment where I need to decide what to do. Do NOT include a dice event on the first turn — let me act first.`,
+        content: `Begin the adventure. Setting: ${world.startingScenario}. The player character enters the scene. Set the opening — describe where they are and what's immediately happening, then leave them at a moment where they need to decide what to do. Do NOT include a dice event on the first turn. Do NOT use the character's name until it has been introduced in-story (NPCs don't know who the player is yet). Refer to the player as "you".`,
       },
     ];
 
