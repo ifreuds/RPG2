@@ -1,0 +1,128 @@
+/* ========== MOBILE (< 640px) ========== */
+@media (max-width: 639px) {
+  h1 { font-size: 32px; }
+  h2 { font-size: 22px; }
+
+  .welcome-title { font-size: 28px; }
+  .welcome-subtitle { font-size: 12px; }
+
+  .menu-title { font-size: 22px; }
+
+  .world-create-title,
+  .char-create-title {
+    font-size: 26px;
+  }
+
+  /* Character creation: single column on mobile */
+  .char-create-grid {
+    grid-template-columns: 1fr;
+    gap: var(--space-lg);
+  }
+
+  /* Gameplay HUD condensed */
+  .gameplay-hud {
+    gap: var(--space-sm);
+    padding: 0 var(--space-sm);
+  }
+
+  .hud-name {
+    font-size: 12px;
+    max-width: 80px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .hud-hp {
+    max-width: 120px;
+  }
+
+  .hud-level { font-size: 11px; }
+  .hud-xp-bar { display: none; }
+
+  /* Story area */
+  .story-area {
+    padding: var(--space-md);
+  }
+
+  .story-narration p {
+    font-size: 16px;
+  }
+
+  /* Dice roll button larger on mobile */
+  .dice-roll-btn {
+    min-width: 64px;
+    height: 52px;
+    font-size: 16px;
+  }
+
+  /* Side drawer full width */
+  .side-drawer {
+    width: 100%;
+  }
+
+  /* Epilogue */
+  .epilogue-title { font-size: 32px; }
+
+  .epilogue-actions {
+    flex-direction: column;
+  }
+
+  /* Console */
+  .console-panel {
+    height: 55vh;
+  }
+
+  .console-filter-bar {
+    flex-wrap: nowrap;
+  }
+
+  .console-entry-time {
+    display: none;
+  }
+
+  .console-entry-detail {
+    padding-left: var(--space-md);
+  }
+
+  /* World preview actions */
+  .world-preview-actions {
+    flex-direction: column;
+  }
+}
+
+/* ========== TABLET (640px - 1024px) ========== */
+@media (min-width: 640px) and (max-width: 1024px) {
+  .welcome-container {
+    max-width: 400px;
+  }
+
+  .menu-cards {
+    max-width: 500px;
+    margin: 0 auto;
+  }
+
+  .story-area {
+    padding: var(--space-lg) var(--space-xl);
+  }
+}
+
+/* ========== DESKTOP (> 1024px) ========== */
+@media (min-width: 1025px) {
+  .menu-cards {
+    flex-direction: row;
+  }
+
+  .menu-cards .card {
+    flex: 1;
+  }
+
+  .story-container {
+    max-width: 720px;
+  }
+
+  .gameplay-input {
+    max-width: 760px;
+    margin: 0 auto;
+    width: 100%;
+  }
+}

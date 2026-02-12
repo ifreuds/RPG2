@@ -1,0 +1,245 @@
+/* ========== DEBUG CONSOLE ========== */
+
+.console-toggle {
+  position: fixed;
+  bottom: var(--space-md);
+  left: var(--space-md);
+  z-index: var(--z-console-toggle);
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-dim);
+  font-family: var(--font-ui);
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition-fast);
+}
+
+.console-toggle:hover {
+  color: var(--accent-cyan);
+  border-color: var(--accent-cyan);
+}
+
+.console-toggle .error-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--accent-red);
+  color: var(--text-primary);
+  font-size: 10px;
+  font-weight: 700;
+  display: none;
+  align-items: center;
+  justify-content: center;
+}
+
+.console-toggle .error-badge.visible {
+  display: flex;
+}
+
+/* Console Panel */
+.console-panel {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 45vh;
+  background: rgba(13, 13, 18, 0.95);
+  border-top: 1px solid var(--border-subtle);
+  z-index: var(--z-console);
+  transform: translateY(100%);
+  transition: transform 250ms ease;
+  display: flex;
+  flex-direction: column;
+}
+
+.console-panel.open {
+  transform: translateY(0);
+}
+
+/* Console Header */
+.console-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-sm) var(--space-md);
+  border-bottom: 1px solid var(--border-subtle);
+  flex-shrink: 0;
+}
+
+.console-title {
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent-cyan);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.console-actions {
+  display: flex;
+  gap: var(--space-sm);
+}
+
+.console-actions button {
+  font-family: var(--font-ui);
+  font-size: 11px;
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 4px 10px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.console-actions button:hover {
+  color: var(--text-primary);
+  border-color: var(--text-dim);
+}
+
+/* Console Filter Bar */
+.console-filter-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  border-bottom: 1px solid var(--border-subtle);
+  flex-shrink: 0;
+  overflow-x: auto;
+}
+
+.console-filter-input {
+  font-family: var(--font-ui);
+  font-size: 12px;
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 4px 8px;
+  outline: none;
+  width: 160px;
+  flex-shrink: 0;
+}
+
+.console-filter-input:focus {
+  border-color: var(--accent-cyan);
+}
+
+.console-filter-tag {
+  font-family: var(--font-ui);
+  font-size: 10px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  border: 1px solid transparent;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+  transition: all var(--transition-fast);
+  background: var(--bg-tertiary);
+  color: var(--text-dim);
+}
+
+.console-filter-tag.active {
+  border-color: currentColor;
+}
+
+.console-filter-tag[data-category="API_REQ"],
+.console-filter-tag[data-category="LOAD"] { color: var(--accent-cyan); }
+.console-filter-tag[data-category="API_RES"],
+.console-filter-tag[data-category="SAVE"] { color: var(--accent-green); }
+.console-filter-tag[data-category="API_ERR"],
+.console-filter-tag[data-category="ERROR"] { color: var(--accent-red); }
+.console-filter-tag[data-category="VALIDATE"],
+.console-filter-tag[data-category="GAME_EVT"] { color: var(--accent-gold); }
+.console-filter-tag[data-category="STATE"] { color: var(--text-secondary); }
+
+/* Console Log Area */
+.console-log {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-sm);
+  font-family: var(--font-ui);
+  font-size: 12px;
+}
+
+.console-log::-webkit-scrollbar {
+  width: 6px;
+}
+
+.console-entry {
+  display: flex;
+  gap: var(--space-sm);
+  padding: 3px var(--space-sm);
+  border-bottom: 1px solid rgba(42, 42, 64, 0.3);
+  cursor: pointer;
+  transition: background var(--transition-fast);
+  align-items: flex-start;
+}
+
+.console-entry:hover {
+  background: var(--bg-tertiary);
+}
+
+.console-entry-time {
+  color: var(--text-dim);
+  flex-shrink: 0;
+  font-size: 11px;
+  min-width: 75px;
+}
+
+.console-entry-tag {
+  font-weight: 600;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  flex-shrink: 0;
+  min-width: 65px;
+}
+
+.console-entry-tag.API_REQ,
+.console-entry-tag.LOAD { color: var(--accent-cyan); }
+.console-entry-tag.API_RES,
+.console-entry-tag.SAVE { color: var(--accent-green); }
+.console-entry-tag.API_ERR,
+.console-entry-tag.ERROR { color: var(--accent-red); }
+.console-entry-tag.VALIDATE,
+.console-entry-tag.GAME_EVT { color: var(--accent-gold); }
+.console-entry-tag.STATE { color: var(--text-secondary); }
+
+.console-entry-msg {
+  color: var(--text-primary);
+  word-break: break-word;
+  flex: 1;
+}
+
+.console-entry-detail {
+  display: none;
+  padding: var(--space-sm) 0 var(--space-sm) 148px;
+  color: var(--text-secondary);
+  font-size: 11px;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.console-entry.expanded .console-entry-detail {
+  display: block;
+}
+
+/* Empty state */
+.console-empty {
+  color: var(--text-dim);
+  text-align: center;
+  padding: var(--space-xl);
+  font-style: italic;
+}

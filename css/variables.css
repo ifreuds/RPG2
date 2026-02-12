@@ -1,0 +1,67 @@
+:root {
+  /* Background colors */
+  --bg-primary: #0D0D12;
+  --bg-secondary: #151520;
+  --bg-tertiary: #1C1C2E;
+  --bg-surface: #22223A;
+
+  /* Text colors */
+  --text-primary: #E8E6DF;
+  --text-secondary: #9B98A0;
+  --text-dim: #5A586B;
+
+  /* Accent colors */
+  --accent-gold: #D4A053;
+  --accent-cyan: #4FC3F7;
+  --accent-red: #E05555;
+  --accent-green: #5CB85C;
+
+  /* Borders */
+  --border-subtle: #2A2A40;
+
+  /* Glows */
+  --glow-gold: rgba(212, 160, 83, 0.15);
+  --glow-cyan: rgba(79, 195, 247, 0.12);
+  --glow-red: rgba(224, 85, 85, 0.15);
+  --glow-green: rgba(92, 184, 92, 0.15);
+
+  /* Typography */
+  --font-display: 'Cinzel', serif;
+  --font-heading: 'Fira Code', monospace;
+  --font-body: 'Crimson Text', serif;
+  --font-ui: 'IBM Plex Mono', monospace;
+
+  /* Spacing */
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 32px;
+  --space-2xl: 48px;
+
+  /* Border radius */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 12px;
+
+  /* Transitions */
+  --transition-fast: 150ms ease;
+  --transition-normal: 300ms ease;
+  --transition-slow: 500ms ease;
+
+  /* Z-index layers */
+  --z-base: 1;
+  --z-dropdown: 100;
+  --z-modal-backdrop: 200;
+  --z-modal: 300;
+  --z-toast: 400;
+  --z-console: 500;
+  --z-console-toggle: 501;
+
+  /* Stat colors */
+  --stat-str: #E07040;
+  --stat-dex: #5CB85C;
+  --stat-int: #4FC3F7;
+  --stat-cha: #E0708A;
+  --stat-wil: #9B59B6;
+}

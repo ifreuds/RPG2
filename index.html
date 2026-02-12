@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Narrative Engine</title>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&family=Fira+Code:wght@400;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <!-- CSS -->
+  <link rel="stylesheet" href="css/variables.css">
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/screens.css">
+  <link rel="stylesheet" href="css/animations.css">
+  <link rel="stylesheet" href="css/console.css">
+  <link rel="stylesheet" href="css/responsive.css">
+
+  <!-- Supabase CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+
+  <!-- ========== SCREEN: WELCOME ========== -->
+  <div id="screen-welcome" class="screen screen-welcome">
+    <div class="welcome-container">
+      <h1 class="welcome-title">AI Narrative Engine</h1>
+      <p class="welcome-subtitle">Free-Choice Text RPG</p>
+      <form id="welcome-form" class="welcome-form">
+        <div class="form-group">
+          <label class="form-label" for="welcome-username">Username</label>
+          <input type="text" id="welcome-username" class="input-field" placeholder="Enter your name..." autocomplete="username" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="welcome-provider">AI Provider</label>
+          <select id="welcome-provider" class="select-field">
+            <option value="openai">OpenAI (ChatGPT)</option>
+            <option value="mistral">Mistral</option>
+            <option value="grok">Grok</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="welcome-apikey">API Key</label>
+          <div class="input-wrapper">
+            <input type="password" id="welcome-apikey" class="input-field" placeholder="Paste your API key..." autocomplete="off" required>
+            <button type="button" id="welcome-apikey-toggle" class="input-toggle-btn" title="Show/hide key">&#9675;</button>
+          </div>
+        </div>
+        <div id="welcome-error" class="welcome-error"></div>
+        <button type="submit" id="welcome-enter-btn" class="btn btn-primary btn-full btn-lg">Enter the Realm</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ========== SCREEN: MAIN MENU ========== -->
+  <div id="screen-menu" class="screen screen-menu">
+    <div class="menu-container">
+      <h1 class="menu-title">AI Narrative Engine</h1>
+      <p id="menu-welcome-text" class="menu-welcome-text">Welcome back</p>
+      <div class="menu-cards">
+        <div id="menu-new-game" class="card card-interactive">
+          <div class="menu-card-icon">&#9876;</div>
+          <div class="card-title">New Game</div>
+          <div class="card-desc">Forge a new world and begin a fresh adventure</div>
+        </div>
+        <div id="menu-load-game" class="card card-interactive">
+          <div class="menu-card-icon">&#128218;</div>
+          <div class="card-title">Load Game</div>
+          <div class="card-desc">Continue a previous adventure</div>
+        </div>
+        <div id="menu-settings" class="card card-interactive">
+          <div class="menu-card-icon">&#9881;</div>
+          <div class="card-title">Settings</div>
+          <div class="card-desc">Manage your AI provider, API key, and preferences</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== SCREEN: WORLD CREATION ========== -->
+  <div id="screen-world-create" class="screen screen-world-create">
+    <div class="world-create-container">
+      <h1 class="world-create-title">Forge Your World</h1>
+
+      <div class="world-field-group">
+        <div class="world-field-header">
+          <label class="world-field-label" for="world-genre">Genre</label>
+          <label class="ai-decide-label">
+            <span>Let AI Decide</span>
+            <label class="toggle-switch">
+              <input type="checkbox" class="ai-decide-toggle" data-field="world-genre">
+              <span class="toggle-slider"></span>
+            </label>
+          </label>
+        </div>
+        <input type="text" id="world-genre" class="input-field" placeholder="Fantasy, Sci-Fi, Western, Horror..." data-placeholder="Fantasy, Sci-Fi, Western, Horror...">
+      </div>
+
+      <div class="world-field-group">
+        <div class="world-field-header">
+          <label class="world-field-label" for="world-tone">Tone</label>
+          <label class="ai-decide-label">
+            <span>Let AI Decide</span>
+            <label class="toggle-switch">
+              <input type="checkbox" class="ai-decide-toggle" data-field="world-tone">
+              <span class="toggle-slider"></span>
+            </label>
+          </label>
+        </div>
+        <input type="text" id="world-tone" class="input-field" placeholder="Dark, Heroic, Comedic, Gritty..." data-placeholder="Dark, Heroic, Comedic, Gritty...">
+      </div>
+
+      <div class="world-field-group">
+        <div class="world-field-header">
+          <label class="world-field-label" for="world-details">World Details</label>
+          <label class="ai-decide-label">
+            <span>Let AI Decide</span>
+            <label class="toggle-switch">
+              <input type="checkbox" class="ai-decide-toggle" data-field="world-details">
+              <span class="toggle-slider"></span>
+            </label>
+          </label>
+        </div>
+        <textarea id="world-details" class="input-field" placeholder="Describe the world, its history, unique features..." data-placeholder="Describe the world, its history, unique features..."></textarea>
+      </div>
+
+      <div class="world-field-group">
+        <div class="world-field-header">
+          <label class="world-field-label" for="world-goal">Main Goal</label>
+          <label class="ai-decide-label">
+            <span>Let AI Decide</span>
+            <label class="toggle-switch">
+              <input type="checkbox" class="ai-decide-toggle" data-field="world-goal">
+              <span class="toggle-slider"></span>
+            </label>
+          </label>
+        </div>
+        <input type="text" id="world-goal" class="input-field" placeholder="Slay the dragon, save the kingdom..." data-placeholder="Slay the dragon, save the kingdom...">
+      </div>
+
+      <div class="world-field-group">
+        <div class="world-field-header">
+          <label class="world-field-label" for="world-scenario">Starting Scenario</label>
+          <label class="ai-decide-label">
+            <span>Let AI Decide</span>
+            <label class="toggle-switch">
+              <input type="checkbox" class="ai-decide-toggle" data-field="world-scenario">
+              <span class="toggle-slider"></span>
+            </label>
+          </label>
+        </div>
+        <textarea id="world-scenario" class="input-field" placeholder="Where does your story begin?" data-placeholder="Where does your story begin?"></textarea>
+      </div>
+
+      <button id="world-generate-btn" class="btn btn-primary btn-full btn-lg">Generate World</button>
+
+      <!-- World Preview -->
+      <div id="world-preview" class="world-preview">
+        <h2 class="world-preview-title" id="preview-name"></h2>
+        <div class="world-preview-section">
+          <div class="world-preview-label">Genre</div>
+          <div class="world-preview-text" id="preview-genre"></div>
+        </div>
+        <div class="world-preview-section">
+          <div class="world-preview-label">Tone</div>
+          <div class="world-preview-text" id="preview-tone"></div>
+        </div>
+        <div class="world-preview-section">
+          <div class="world-preview-label">World Details</div>
+          <div class="world-preview-text" id="preview-details"></div>
+        </div>
+        <div class="world-preview-section">
+          <div class="world-preview-label">Main Goal</div>
+          <div class="world-preview-text" id="preview-goal"></div>
+        </div>
+        <div class="world-preview-section">
+          <div class="world-preview-label">Starting Scenario</div>
+          <div class="world-preview-text" id="preview-scenario"></div>
+        </div>
+        <div class="world-preview-actions">
+          <button id="world-accept-btn" class="btn btn-primary btn-lg">Accept World</button>
+          <button id="world-regen-btn" class="btn btn-outline btn-lg">Regenerate</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== SCREEN: CHARACTER CREATION ========== -->
+  <div id="screen-char-create" class="screen screen-char-create">
+    <div class="char-create-container">
+      <h1 class="char-create-title">Create Your Character</h1>
+
+      <div class="char-create-grid">
+        <!-- Left: Identity -->
+        <div>
+          <div class="char-section-title">Identity</div>
+          <div class="form-group">
+            <label class="form-label" for="char-name">Character Name</label>
+            <input type="text" id="char-name" class="input-field" placeholder="Enter character name..." required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Gender</label>
+            <div class="gender-toggle">
+              <button type="button" class="btn gender-btn selected" data-gender="male">Male</button>
+              <button type="button" class="btn gender-btn" data-gender="female">Female</button>
+            </div>
+          </div>
+
+          <div class="ability-section">
+            <div class="char-section-title">Special Ability</div>
+            <div class="form-group">
+              <label class="form-label" for="ability-name">Ability Name</label>
+              <input type="text" id="ability-name" class="input-field" placeholder="e.g., Eagle Eye, Iron Will...">
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="ability-stat">Linked Stat</label>
+              <select id="ability-stat" class="select-field">
+                <option value="STR">Strength (STR)</option>
+                <option value="DEX">Dexterity (DEX)</option>
+                <option value="INT">Intelligence (INT)</option>
+                <option value="CHA">Charisma (CHA)</option>
+                <option value="WIL">Willpower (WIL)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="ability-desc">Description</label>
+              <textarea id="ability-desc" class="input-field" placeholder="Describe what your ability does..."></textarea>
+            </div>
+            <div class="ability-info">
+              <span>&#9432;</span> Special ability adds +5 bonus to linked stat during checks
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: Stats -->
+        <div>
+          <div class="char-section-title">Stat Allocation</div>
+          <div class="stat-alloc-panel">
+            <div id="stat-points-remaining" class="stat-points-remaining">Points Remaining: 10</div>
+
+            <div class="stat-row">
+              <span class="stat-name str">STR — Strength</span>
+              <div class="stat-controls">
+                <button type="button" id="stat-minus-STR" class="stat-btn" disabled>−</button>
+                <span id="stat-val-STR" class="stat-value">0</span>
+                <button type="button" id="stat-plus-STR" class="stat-btn">+</button>
+              </div>
+            </div>
+
+            <div class="stat-row">
+              <span class="stat-name dex">DEX — Dexterity</span>
+              <div class="stat-controls">
+                <button type="button" id="stat-minus-DEX" class="stat-btn" disabled>−</button>
+                <span id="stat-val-DEX" class="stat-value">0</span>
+                <button type="button" id="stat-plus-DEX" class="stat-btn">+</button>
+              </div>
+            </div>
+
+            <div class="stat-row">
+              <span class="stat-name int">INT — Intelligence</span>
+              <div class="stat-controls">
+                <button type="button" id="stat-minus-INT" class="stat-btn" disabled>−</button>
+                <span id="stat-val-INT" class="stat-value">0</span>
+                <button type="button" id="stat-plus-INT" class="stat-btn">+</button>
+              </div>
+            </div>
+
+            <div class="stat-row">
+              <span class="stat-name cha">CHA — Charisma</span>
+              <div class="stat-controls">
+                <button type="button" id="stat-minus-CHA" class="stat-btn" disabled>−</button>
+                <span id="stat-val-CHA" class="stat-value">0</span>
+                <button type="button" id="stat-plus-CHA" class="stat-btn">+</button>
+              </div>
+            </div>
+
+            <div class="stat-row">
+              <span class="stat-name wil">WIL — Willpower</span>
+              <div class="stat-controls">
+                <button type="button" id="stat-minus-WIL" class="stat-btn" disabled>−</button>
+                <span id="stat-val-WIL" class="stat-value">0</span>
+                <button type="button" id="stat-plus-WIL" class="stat-btn">+</button>
+              </div>
+            </div>
+          </div>
+
+          <button type="button" id="char-begin-btn" class="btn btn-primary btn-full btn-lg" style="margin-top: 24px;" disabled>Begin Adventure</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== SCREEN: GAMEPLAY ========== -->
+  <div id="screen-gameplay" class="screen screen-gameplay">
+    <!-- Top Bar HUD -->
+    <div class="gameplay-hud">
+      <span id="hud-char-name" class="hud-name">Hero</span>
+      <div class="hud-hp">
+        <span id="hud-hp-label" class="hud-hp-label">HP 100/100</span>
+        <div class="stat-bar">
+          <div id="hud-hp-fill" class="stat-bar-fill hp" style="width: 100%"></div>
+        </div>
+      </div>
+      <span id="hud-level" class="hud-level">Lv 1</span>
+      <div class="stat-bar hud-xp-bar">
+        <div id="hud-xp-fill" class="stat-bar-fill xp" style="width: 0%"></div>
+      </div>
+      <button id="hud-menu-btn" class="hud-menu-btn" title="Menu">&#9776;</button>
+    </div>
+
+    <!-- Story Area -->
+    <div class="story-area">
+      <div id="story-container" class="story-container"></div>
+    </div>
+
+    <!-- Input Area -->
+    <div class="gameplay-input">
+      <input type="text" id="gameplay-input-field" class="input-field" placeholder="What do you do?" autocomplete="off">
+      <button id="dice-roll-btn" class="dice-roll-btn">Roll d20</button>
+      <button id="gameplay-send-btn" class="send-btn" title="Send">&#9654;</button>
+    </div>
+
+    <!-- Loading indicator -->
+    <div id="gameplay-loading" class="gameplay-loading">
+      <span class="loading-ring"></span>
+      <span class="loading-text">The narrator ponders...</span>
+    </div>
+
+    <!-- Side Drawer -->
+    <div id="side-drawer-backdrop" class="side-drawer-backdrop"></div>
+    <div id="side-drawer" class="side-drawer">
+      <div class="drawer-title">Menu</div>
+      <div id="drawer-save" class="drawer-item">
+        <span class="drawer-item-icon">&#128190;</span> Save Game
+      </div>
+      <div id="drawer-settings" class="drawer-item">
+        <span class="drawer-item-icon">&#9881;</span> Settings
+      </div>
+      <div id="drawer-quit" class="drawer-item">
+        <span class="drawer-item-icon">&#128682;</span> Quit to Menu
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== SCREEN: EPILOGUE ========== -->
+  <div id="screen-epilogue" class="screen screen-epilogue">
+    <div class="epilogue-container">
+      <h1 id="epilogue-title" class="epilogue-title victory">VICTORY</h1>
+      <div id="epilogue-border" class="epilogue-border victory">
+        <div id="epilogue-story" class="epilogue-story"></div>
+
+        <div class="campaign-summary">
+          <div class="summary-title">Campaign Summary</div>
+          <div id="epilogue-summary"></div>
+        </div>
+      </div>
+
+      <div class="epilogue-actions">
+        <button id="epilogue-menu-btn" class="btn btn-primary btn-lg">Return to Main Menu</button>
+        <button id="epilogue-save-log" class="btn btn-outline btn-lg">Save Story Log</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== MODAL: LOAD GAME ========== -->
+  <div id="load-game-modal" class="modal-backdrop">
+    <div class="modal">
+      <div class="modal-header">
+        <span class="modal-title">Load Game</span>
+        <button class="modal-close">&times;</button>
+      </div>
+      <div id="save-slot-list" class="save-slot-list">
+        <div class="save-slot-empty">Loading saves...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== MODAL: SETTINGS ========== -->
+  <div id="settings-modal" class="modal-backdrop">
+    <div class="modal">
+      <div class="modal-header">
+        <span class="modal-title">Settings</span>
+        <button class="modal-close">&times;</button>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="settings-provider">AI Provider</label>
+        <select id="settings-provider" class="select-field">
+          <option value="openai">OpenAI (ChatGPT)</option>
+          <option value="mistral">Mistral</option>
+          <option value="grok">Grok</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="settings-apikey">API Key</label>
+        <input type="password" id="settings-apikey" class="input-field" placeholder="Enter API key...">
+      </div>
+
+      <div class="settings-group">
+        <div>
+          <div class="settings-label">Auto-Save Interval</div>
+          <div class="settings-desc">Save every <span id="settings-autosave-val">5</span> turns</div>
+        </div>
+        <input type="range" id="settings-autosave" class="range-slider" min="3" max="10" value="5">
+      </div>
+
+      <div class="settings-group">
+        <div>
+          <div class="settings-label">Image Generation</div>
+          <div class="settings-desc">Coming in Phase 2</div>
+        </div>
+        <label class="toggle-switch">
+          <input type="checkbox" disabled>
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+
+      <button id="settings-save-btn" class="btn btn-primary btn-full" style="margin-top: 24px;">Save Settings</button>
+    </div>
+  </div>
+
+  <!-- JS (order matters — config and dependencies first) -->
+  <script src="js/config.js"></script>
+  <script src="js/console-debug.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/state.js"></script>
+  <script src="js/supabase.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/dice.js"></script>
+  <script src="js/game-engine.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
