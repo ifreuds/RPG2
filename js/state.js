@@ -31,6 +31,7 @@ const GameState = (() => {
         name: '',
         genre: '',
         tone: '',
+        narratorStyle: '',
         details: '',
         goal: '',
         startingScenario: '',
@@ -108,7 +109,7 @@ const GameState = (() => {
       saveSlotId: null,
       slotNumber: null,
       status: 'active',
-      world: { name: '', genre: '', tone: '', details: '', goal: '', startingScenario: '', summary: '' },
+      world: { name: '', genre: '', tone: '', narratorStyle: '', details: '', goal: '', startingScenario: '', summary: '' },
       character: {
         name: '', gender: '', level: 1, xp: 0, xpToNext: 100,
         hp: DEFAULT_STARTING_HP, maxHp: DEFAULT_STARTING_HP,

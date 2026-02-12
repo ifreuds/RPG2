@@ -492,14 +492,14 @@
 
 .story-narration p {
   font-family: var(--font-body);
-  font-size: 17px;
-  line-height: 1.7;
+  font-size: 20px;
+  line-height: 1.85;
   color: var(--text-primary);
 }
 
 .story-player-action {
   font-family: var(--font-ui);
-  font-size: 14px;
+  font-size: 15px;
   color: var(--text-secondary);
   padding: var(--space-sm) var(--space-md);
   margin-bottom: var(--space-sm);

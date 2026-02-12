@@ -6,7 +6,7 @@ const AI = (() => {
 
 Every response must follow this exact schema:
 {
-  "story": "string — narrative text describing what happens next",
+  "story": "string — narrative text",
   "event": null or {
     "type": "stat_check" | "combat" | "item_found" | "npc_encounter" | "story_end",
     "stat": "STR" | "DEX" | "INT" | "CHA" | "WIL",
@@ -15,36 +15,56 @@ Every response must follow this exact schema:
     "success_hint": "string — what happens on success",
     "fail_hint": "string — what happens on failure"
   },
-  "item_gained": null or "string — name of item gained",
-  "item_lost": null or "string — name of item lost",
-  "new_npc": null or {
-    "name": "string",
-    "role": "string — their role in the story",
-    "personality": "string — brief personality description",
-    "appearance": "string — brief visual description",
-    "relationship": 0
-  },
+  "item_gained": null or "string",
+  "item_lost": null or "string",
+  "new_npc": null or { "name": "string", "role": "string", "personality": "string", "appearance": "string", "relationship": 0 },
   "npc_updates": null or [{ "name": "string", "change": number, "reason": "string" }],
   "hp_change": 0,
   "xp_gained": 0,
   "game_end": false
 }
 
-Rules:
-- "story" is always required and must be a vivid, engaging narrative (2-4 paragraphs)
-- Only include an "event" when the player's action involves risk, challenge, or significant interaction
-- stat_check: when the action requires a skill check
+CRITICAL NARRATION RULES:
+1. CONCISENESS: Keep "story" to 3-6 sentences for normal turns. This is an RPG, not a novel — players want to ACT, not read walls of text. Be vivid but efficient.
+2. OPEN-ENDED ENDINGS: ALWAYS end "story" with an unresolved situation, a question, a cliffhanger, or a moment that demands player choice. NEVER wrap up the scene neatly. The player must feel compelled to type what they do next. Examples of good endings: "The door creaks open, revealing darkness beyond. Something moves inside." or "She looks at you expectantly, waiting for your answer."
+3. NO EVENTS ON EVERY TURN: Only include "event" when the PLAYER'S ACTION explicitly involves risk, combat, or something that warrants a skill check. Exploration, dialogue, and travel often need NO event. Let the story breathe.
+4. EVENTS ARE SETUP ONLY: When you include an event, the "story" describes ONLY the setup — the moment of tension BEFORE the outcome. Do NOT resolve the outcome. Do NOT describe success or failure. The dice roll will determine what happens next, and you will narrate the outcome in a follow-up response.
+5. PACING: Match story length to the action's significance. A casual conversation = 2-3 sentences. A dramatic plot reveal = 4-6 sentences. A climactic battle setup = 4-6 sentences. A minor movement action = 2-3 sentences.
+6. ROMANCE & EMOTIONAL SCENES: For romance, intimacy, and deep emotional moments, you may write longer (6-10 sentences) with mature, detailed prose. Be expressive and uninhibited. These scenes deserve depth.
+7. DO NOT DECIDE DICE OUTCOMES — just set up the check. The game engine handles rolls and will ask you for the outcome separately.
+
+Event rules:
+- stat_check: when an action requires a skill check
 - combat: when engaging in battle
-- item_found: when discovering an item
-- npc_encounter: when meeting someone important
+- item_found: when discovering an item (no dice needed)
+- npc_encounter: when meeting someone important (no dice needed)
 - story_end: when the story reaches a natural conclusion
-- difficulty ranges: Easy 8, Medium 12, Hard 16, Near Impossible 20
-- "severity": "basic" = story consequence only, "important" = HP loss on failure
-- hp_change: negative for damage, positive for healing. Only apply AFTER dice results, not preemptively
-- xp_gained: 5-15 for minor events, 20-50 for major events
-- game_end: true only when the story reaches a definitive ending (victory or defeat)
-- Do NOT decide dice outcomes — just set up the check. The game engine handles rolls.
-- Keep NPCs consistent with established profiles`;
+- difficulty: Easy 8, Medium 12, Hard 16, Near Impossible 20
+- severity: "basic" = story consequence only, "important" = HP loss on failure
+- hp_change / xp_gained: set to 0 when an event is present (applied after dice resolution)
+- game_end: true ONLY for definitive story endings`;
+
+  // System prompt specifically for narrating dice outcomes
+  const DICE_OUTCOME_PROMPT = `You are continuing as the RPG narrator. The player just attempted an action that required a dice roll. Based on the result, narrate what happens next.
+
+Respond with valid JSON only:
+{
+  "story": "string — narrate the outcome of the dice roll, then end with a new open-ended situation",
+  "item_gained": null or "string",
+  "item_lost": null or "string",
+  "new_npc": null or { "name": "string", "role": "string", "personality": "string", "appearance": "string", "relationship": 0 },
+  "npc_updates": null or [{ "name": "string", "change": number, "reason": "string" }],
+  "hp_change": number,
+  "xp_gained": number,
+  "game_end": false
+}
+
+Rules:
+- On SUCCESS: Narrate a favorable outcome. Be satisfying but brief (3-5 sentences). Award 10-20 XP.
+- On FAILURE with "basic" severity: Narrate a setback or complication but no HP loss. 5 XP for the attempt.
+- On FAILURE with "important" severity: Narrate taking damage or a serious consequence. Apply hp_change (negative, typically -5 to -15 based on difficulty). 5 XP for the attempt.
+- ALWAYS end with a new open-ended situation that demands the player's next action.
+- Keep it concise. The player just waited for a dice roll — don't make them read a novel.`;
 
   const WORLD_GEN_SYSTEM_PROMPT = `You are a world builder for a text-based RPG. Generate a unique, compelling world based on the player's preferences. Respond with valid JSON only — no markdown, no code fences.
 
@@ -55,8 +75,10 @@ Response schema:
   "tone": "string — the tone",
   "details": "string — 2-3 paragraph world description",
   "goal": "string — the player's main objective",
-  "startingScenario": "string — opening scene description (2-3 paragraphs)"
-}`;
+  "startingScenario": "string — brief opening scene setup (1 short paragraph, NOT the full opening narration)"
+}
+
+Note: Keep "startingScenario" brief — it's a scene SETUP that the narrator will expand on when gameplay starts. Do not write the full opening narration here.`;
 
   async function sendPrompt(messages, systemPrompt) {
     const player = GameState.getPlayer();
@@ -187,6 +209,30 @@ Response schema:
     return { valid: errors.length === 0, data: parsed, errors };
   }
 
+  // Validate dice outcome response (simpler — no event expected)
+  function validateDiceOutcome(raw) {
+    debugLog('VALIDATE', 'Validating dice outcome response...');
+    let cleaned = raw.trim();
+    if (cleaned.startsWith('```')) {
+      cleaned = cleaned.replace(/^```(?:json)?\s*/, '').replace(/\s*```$/, '');
+    }
+
+    try {
+      const parsed = JSON.parse(cleaned);
+      if (!parsed.story || typeof parsed.story !== 'string') {
+        parsed.story = cleaned;
+      }
+      if (parsed.hp_change === undefined) parsed.hp_change = 0;
+      if (parsed.xp_gained === undefined) parsed.xp_gained = 0;
+      if (parsed.game_end === undefined) parsed.game_end = false;
+      debugLog('VALIDATE', 'Dice outcome validated OK');
+      return { valid: true, data: parsed };
+    } catch (e) {
+      debugLog('VALIDATE', `Dice outcome JSON parse failed: ${e.message}`, raw);
+      return { valid: false, data: { story: raw, hp_change: 0, xp_gained: 5, game_end: false } };
+    }
+  }
+
   // Validate world generation response
   function validateWorldResponse(raw) {
     debugLog('VALIDATE', 'Validating world response...');
@@ -231,12 +277,46 @@ Response schema:
       if (turn.aiResponse) {
         messages.push({ role: 'assistant', content: JSON.stringify(turn.aiResponse) });
       }
+      // Include dice outcome messages if present
+      if (turn.diceOutcomeResponse) {
+        messages.push({ role: 'user', content: turn.diceOutcomeRequest });
+        messages.push({ role: 'assistant', content: JSON.stringify(turn.diceOutcomeResponse) });
+      }
     });
 
     // Current action
     messages.push({ role: 'user', content: playerAction });
 
     return messages;
+  }
+
+  // Build messages for requesting dice outcome narration
+  function buildDiceOutcomeMessages(event, diceResult) {
+    const game = GameState.getGame();
+    const messages = [];
+
+    // Include recent context
+    if (game.storySummary) {
+      messages.push({ role: 'system', content: `Previously: ${game.storySummary}` });
+    }
+
+    // Last few turns for context
+    const recent = game.recentTurns.slice(-3);
+    recent.forEach(turn => {
+      if (turn.playerAction) messages.push({ role: 'user', content: turn.playerAction });
+      if (turn.aiResponse) messages.push({ role: 'assistant', content: JSON.stringify(turn.aiResponse) });
+      if (turn.diceOutcomeResponse) {
+        messages.push({ role: 'user', content: turn.diceOutcomeRequest });
+        messages.push({ role: 'assistant', content: JSON.stringify(turn.diceOutcomeResponse) });
+      }
+    });
+
+    // The dice result message
+    const outcomeMsg = `[DICE RESULT] The player attempted a ${event.type} — ${Utils.statFullName(event.stat)} check (DC ${event.difficulty}, severity: ${event.severity}). They rolled ${diceResult.roll} + ${diceResult.bonus} bonus = ${diceResult.total}. Result: ${diceResult.passed ? 'SUCCESS' : 'FAILURE'}. ${event.success_hint && diceResult.passed ? 'Hint: ' + event.success_hint : ''}${event.fail_hint && !diceResult.passed ? 'Hint: ' + event.fail_hint : ''}. Narrate the outcome.`;
+
+    messages.push({ role: 'user', content: outcomeMsg });
+
+    return { messages, outcomeMsg };
   }
 
   // Build the world context header for game system prompt
@@ -246,6 +326,12 @@ Response schema:
     const game = GameState.getGame();
 
     let context = GAME_SYSTEM_PROMPT;
+
+    // Add narrator style instruction
+    if (world.narratorStyle) {
+      context += `\n\n--- NARRATOR STYLE ---\nAdopt this narrator persona/style: ${world.narratorStyle}. Let this influence your tone, vocabulary, and narration approach throughout the story.`;
+    }
+
     context += `\n\n--- WORLD ---\nWorld: ${world.name}\nGenre: ${world.genre}\nTone: ${world.tone}\nDetails: ${world.details}\nGoal: ${world.goal}`;
     context += `\n\n--- CHARACTER ---\nName: ${char.name}\nGender: ${char.gender}\nLevel: ${char.level} (XP: ${char.xp}/${char.xpToNext})\nHP: ${char.hp}/${char.maxHp}`;
     context += `\nStats: STR ${char.stats.STR}, DEX ${char.stats.DEX}, INT ${char.stats.INT}, CHA ${char.stats.CHA}, WIL ${char.stats.WIL}`;
@@ -265,9 +351,26 @@ Response schema:
     return context;
   }
 
+  // Build world context for dice outcome (uses the simpler outcome prompt)
+  function buildDiceOutcomeContext() {
+    const world = GameState.getWorld();
+    const char = GameState.getCharacter();
+
+    let context = DICE_OUTCOME_PROMPT;
+
+    if (world.narratorStyle) {
+      context += `\n\nNarrator style: ${world.narratorStyle}`;
+    }
+
+    context += `\n\nWorld: ${world.name} (${world.genre}, ${world.tone})`;
+    context += `\nCharacter: ${char.name}, HP: ${char.hp}/${char.maxHp}, Level ${char.level}`;
+
+    return context;
+  }
+
   return {
-    sendPrompt, validateGameResponse, validateWorldResponse,
-    buildGameMessages, buildWorldContext,
-    GAME_SYSTEM_PROMPT, WORLD_GEN_SYSTEM_PROMPT,
+    sendPrompt, validateGameResponse, validateWorldResponse, validateDiceOutcome,
+    buildGameMessages, buildDiceOutcomeMessages, buildWorldContext, buildDiceOutcomeContext,
+    GAME_SYSTEM_PROMPT, WORLD_GEN_SYSTEM_PROMPT, DICE_OUTCOME_PROMPT,
   };
 })();

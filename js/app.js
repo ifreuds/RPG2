@@ -241,6 +241,22 @@ const App = (() => {
       });
     });
 
+    // Narrator custom toggle
+    const narratorCustomToggle = document.getElementById('narrator-custom-toggle');
+    const narratorSelect = document.getElementById('world-narrator');
+    const narratorCustomInput = document.getElementById('world-narrator-custom');
+    if (narratorCustomToggle) {
+      narratorCustomToggle.addEventListener('change', (e) => {
+        if (e.target.checked) {
+          narratorSelect.style.display = 'none';
+          narratorCustomInput.style.display = '';
+        } else {
+          narratorSelect.style.display = '';
+          narratorCustomInput.style.display = 'none';
+        }
+      });
+    }
+
     generateBtn?.addEventListener('click', async () => {
       await generateWorld();
     });
@@ -261,6 +277,14 @@ const App = (() => {
     const details = document.getElementById('world-details')?.value.trim();
     const goal = document.getElementById('world-goal')?.value.trim();
     const scenario = document.getElementById('world-scenario')?.value.trim();
+
+    // Get narrator style
+    const narratorCustomToggle = document.getElementById('narrator-custom-toggle');
+    const narratorSelect = document.getElementById('world-narrator');
+    const narratorCustomInput = document.getElementById('world-narrator-custom');
+    const narratorStyle = narratorCustomToggle?.checked
+      ? narratorCustomInput?.value.trim() || ''
+      : narratorSelect?.value || '';
 
     const genBtn = document.getElementById('world-generate-btn');
     UI.setLoading(genBtn, true);
@@ -286,6 +310,7 @@ Starting Scenario: ${scenario || 'You decide — craft an intriguing opening'}`;
       // Store in state
       const world = GameState.getWorld();
       Object.assign(world, result.data);
+      world.narratorStyle = narratorStyle;
 
       // Show preview
       showWorldPreview(result.data);

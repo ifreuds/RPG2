@@ -1,4 +1,10 @@
 // Core game loop, event handling, dice logic, save triggering
+//
+// GAME FLOW:
+// 1. Story arrives (open-ended, may include event setup)
+// 2. If NO event → player types next action → back to step 1
+// 3. If event with dice check → player rolls → result sent to AI → AI narrates outcome → back to step 2
+// This ensures dice results AFFECT the story, not just HP mechanically.
 
 const GameEngine = (() => {
   let isProcessing = false;
@@ -17,7 +23,7 @@ const GameEngine = (() => {
     const messages = [
       {
         role: 'user',
-        content: `Begin the adventure. The setting is: ${world.startingScenario}. My character "${char.name}" enters the scene. Describe the opening scene vividly and set up the first moment of the adventure. Include an initial event if appropriate.`,
+        content: `Begin the adventure. Setting: ${world.startingScenario}. My character "${char.name}" enters the scene. Set the opening scene concisely — describe where I am and what's immediately happening, then leave me at a moment where I need to decide what to do. Do NOT include a dice event on the first turn — let me act first.`,
       },
     ];
 
@@ -53,6 +59,16 @@ const GameEngine = (() => {
           const narration = document.createElement('div');
           narration.className = 'story-narration';
           narration.innerHTML = `<p>${Utils.escapeHtml(turn.aiResponse.story)}</p>`;
+          entry.appendChild(narration);
+          storyContainer.appendChild(entry);
+        }
+        // Also show dice outcome story if present
+        if (turn.diceOutcomeResponse && turn.diceOutcomeResponse.story) {
+          const entry = document.createElement('div');
+          entry.className = 'story-entry';
+          const narration = document.createElement('div');
+          narration.className = 'story-narration';
+          narration.innerHTML = `<p>${Utils.escapeHtml(turn.diceOutcomeResponse.story)}</p>`;
           entry.appendChild(narration);
           storyContainer.appendChild(entry);
         }
@@ -106,7 +122,7 @@ const GameEngine = (() => {
       await UI.addStoryNarration(storyContainer, data.story);
     }
 
-    // Handle items
+    // Handle items (for non-dice events like item_found)
     if (data.item_gained) {
       const game = GameState.getGame();
       game.items.push(data.item_gained);
@@ -131,34 +147,49 @@ const GameEngine = (() => {
       updateNPCs(data.npc_updates);
     }
 
-    // Handle event (dice check)
-    if (data.event) {
-      await handleEvent(data.event, storyContainer);
+    // Build the turn entry (will be augmented if dice outcome happens)
+    const turnEntry = {
+      playerAction,
+      aiResponse: data,
+      diceOutcomeRequest: null,
+      diceOutcomeResponse: null,
+      timestamp: new Date().toISOString(),
+    };
+
+    // Handle event — this is where the flow diverges
+    if (data.event && (data.event.type === 'stat_check' || data.event.type === 'combat')) {
+      // DICE CHECK FLOW:
+      // 1. Show event card
+      // 2. Player rolls dice
+      // 3. Send result to AI for outcome narration
+      // 4. Display outcome story
+      const diceOutcome = await handleDiceEvent(data.event, storyContainer);
+      if (diceOutcome) {
+        turnEntry.diceOutcomeRequest = diceOutcome.request;
+        turnEntry.diceOutcomeResponse = diceOutcome.response;
+      }
+    } else if (data.event) {
+      // Non-dice events (item_found, npc_encounter, story_end)
+      debugLog('GAME_EVT', `Event: ${data.event.type}`, data.event);
+      UI.addEventCard(storyContainer, data.event);
     }
 
-    // Apply XP (immediate, not dependent on dice)
-    if (data.xp_gained && data.xp_gained > 0) {
-      applyXP(data.xp_gained);
-    }
-
-    // Apply HP change (if no event, direct HP changes from AI)
-    if (data.hp_change && data.hp_change !== 0 && !data.event) {
-      applyHP(data.hp_change);
+    // Apply XP/HP from the initial response (only for non-dice turns)
+    if (!data.event || (data.event.type !== 'stat_check' && data.event.type !== 'combat')) {
+      if (data.xp_gained && data.xp_gained > 0) applyXP(data.xp_gained);
+      if (data.hp_change && data.hp_change !== 0) applyHP(data.hp_change);
     }
 
     // Store the turn
-    GameState.addStoryEntry({
-      playerAction,
-      aiResponse: data,
-      timestamp: new Date().toISOString(),
-    });
+    GameState.addStoryEntry(turnEntry);
 
     // Increment turn
     const turnCount = GameState.incrementTurn();
     debugLog('GAME_EVT', `Turn ${turnCount} complete`);
 
-    // Check game end
-    if (data.game_end) {
+    // Check game end (from initial response or dice outcome)
+    const outcomeData = turnEntry.diceOutcomeResponse;
+    if (data.game_end || (outcomeData && outcomeData.game_end)) {
       endGame(GameState.getCharacter().hp > 0 ? 'victory' : 'defeat');
       return;
     }
@@ -177,20 +208,73 @@ const GameEngine = (() => {
     UI.updateHUD();
   }
 
-  // Handle a game event (stat check, combat, etc.)
-  async function handleEvent(event, storyContainer) {
-    debugLog('GAME_EVT', `Event: ${event.type}`, event);
+  // Handle a dice-based event (stat_check or combat)
+  // Returns { request, response } for the dice outcome, or null
+  async function handleDiceEvent(event, storyContainer) {
+    debugLog('GAME_EVT', `Dice event: ${event.type}`, event);
     UI.addEventCard(storyContainer, event);
 
-    if (event.type === 'stat_check' || event.type === 'combat') {
-      // Show dice roll button and wait for player to click it
-      await waitForDiceRoll(event);
-    } else if (event.type === 'item_found') {
-      // Item already handled above
-    } else if (event.type === 'npc_encounter') {
-      // NPC already handled above
-    } else if (event.type === 'story_end') {
-      // Will be handled by game_end flag
+    // Wait for player to click the dice roll button
+    const diceResult = await waitForDiceRoll(event);
+    if (!diceResult) return null;
+
+    // Now send the dice result to the AI for outcome narration
+    try {
+      showGameplayLoading(true);
+
+      const systemPrompt = AI.buildDiceOutcomeContext();
+      const { messages, outcomeMsg } = AI.buildDiceOutcomeMessages(event, diceResult);
+
+      const raw = await AI.sendPrompt(messages, systemPrompt);
+      const { data: outcomeData } = AI.validateDiceOutcome(raw);
+
+      showGameplayLoading(false);
+
+      // Display the outcome story
+      if (outcomeData.story) {
+        await UI.addStoryNarration(storyContainer, outcomeData.story);
+      }
+
+      // Apply HP/XP from the AI's outcome response
+      if (outcomeData.hp_change && outcomeData.hp_change !== 0) {
+        applyHP(outcomeData.hp_change);
+      }
+      if (outcomeData.xp_gained && outcomeData.xp_gained > 0) {
+        applyXP(outcomeData.xp_gained);
+      }
+
+      // Handle items/NPCs from outcome
+      if (outcomeData.item_gained) {
+        GameState.getGame().items.push(outcomeData.item_gained);
+        UI.showToast(`Item found: ${outcomeData.item_gained}`, 'success');
+      }
+      if (outcomeData.item_lost) {
+        const game = GameState.getGame();
+        const idx = game.items.indexOf(outcomeData.item_lost);
+        if (idx !== -1) game.items.splice(idx, 1);
+      }
+      if (outcomeData.new_npc) addNPC(outcomeData.new_npc);
+      if (outcomeData.npc_updates) updateNPCs(outcomeData.npc_updates);
+
+      return { request: outcomeMsg, response: outcomeData };
+
+    } catch (err) {
+      debugLog('ERROR', `Dice outcome request failed: ${err.message}`, err.stack);
+      showGameplayLoading(false);
+
+      // Fallback: apply mechanical consequences without AI narration
+      const fallbackStory = diceResult.passed
+        ? 'You succeed in your attempt.'
+        : 'Your attempt fails.';
+      await UI.addStoryNarration(storyContainer, fallbackStory);
+
+      if (!diceResult.passed && event.severity === 'important') {
+        const hpLoss = -(Math.floor(event.difficulty / 3) + 2);
+        applyHP(hpLoss);
+      }
+      applyXP(diceResult.passed ? 15 : 5);
+
+      return null;
     }
   }
 
@@ -200,7 +284,7 @@ const GameEngine = (() => {
       const inputField = document.getElementById('gameplay-input-field');
       const sendBtn = document.getElementById('gameplay-send-btn');
 
-      if (!diceBtn) { resolve(); return; }
+      if (!diceBtn) { resolve(null); return; }
 
       // Show dice button, hide input
       diceBtn.classList.add('visible');
@@ -219,18 +303,6 @@ const GameEngine = (() => {
         const useSpecial = char.specialAbility.stat === event.stat && char.specialAbility.name;
 
         const result = await Dice.roll(event.stat, event.difficulty, useSpecial);
-
-        // Apply consequences
-        if (!result.passed && event.severity === 'important') {
-          // HP loss on important failure — AI provided hints
-          const hpLoss = Math.max(-5, -(Math.floor(event.difficulty / 3) + 2));
-          applyHP(hpLoss);
-        }
-
-        // XP for attempting events
-        const xpForEvent = result.passed ? 15 : 5;
-        applyXP(xpForEvent);
-
         resolve(result);
       };
 
@@ -244,7 +316,6 @@ const GameEngine = (() => {
       debugLog('GAME_EVT', 'Max NPCs reached, ignoring new NPC', npcData);
       return;
     }
-    // Check if NPC already exists
     const existing = game.keyNpcs.find(n => n.name.toLowerCase() === npcData.name.toLowerCase());
     if (existing) {
       debugLog('GAME_EVT', `NPC ${npcData.name} already exists, skipping`);
@@ -286,7 +357,6 @@ const GameEngine = (() => {
     char.xp += amount;
     debugLog('GAME_EVT', `XP gained: +${amount} (total: ${char.xp}/${char.xpToNext})`);
 
-    // Level up check
     while (char.xp >= char.xpToNext) {
       char.xp -= char.xpToNext;
       char.level++;
@@ -330,7 +400,6 @@ const GameEngine = (() => {
       if (game.saveSlotId) {
         await DB.updateSaveSlot(game.saveSlotId, saveState, game.status);
       } else {
-        // Create new save slot
         const slots = await DB.getSaveSlots(player.id);
         const nextSlot = slots.length > 0 ? Math.max(...slots.map(s => s.slot_number)) + 1 : 1;
         const saved = await DB.createSaveSlot(player.id, nextSlot, saveState);
@@ -351,10 +420,7 @@ const GameEngine = (() => {
     game.status = outcome === 'victory' ? 'completed' : 'failed';
     debugLog('GAME_EVT', `Game ended: ${outcome}`);
 
-    // Save final state
     manualSave();
-
-    // Show epilogue
     showEpilogue(outcome);
   }
 
@@ -374,7 +440,6 @@ const GameEngine = (() => {
       borderEl.className = `epilogue-border ${outcome}`;
     }
 
-    // Build summary
     const summaryHtml = `
       <div class="summary-row"><span class="summary-label">Turns Played</span><span class="summary-value">${game.turnCount}</span></div>
       <div class="summary-row"><span class="summary-label">Final Level</span><span class="summary-value">${char.level}</span></div>
@@ -385,10 +450,10 @@ const GameEngine = (() => {
     const summaryContainer = document.getElementById('epilogue-summary');
     if (summaryContainer) summaryContainer.innerHTML = summaryHtml;
 
-    // Get last story entry for epilogue text
     const lastTurn = game.recentTurns[game.recentTurns.length - 1];
-    if (storyEl && lastTurn && lastTurn.aiResponse) {
-      storyEl.textContent = lastTurn.aiResponse.story || '';
+    if (storyEl && lastTurn) {
+      const lastStory = lastTurn.diceOutcomeResponse?.story || lastTurn.aiResponse?.story || '';
+      storyEl.textContent = lastStory;
     }
 
     UI.showScreen('screen-epilogue');

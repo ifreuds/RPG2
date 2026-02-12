@@ -115,6 +115,31 @@
 
       <div class="world-field-group">
         <div class="world-field-header">
+          <label class="world-field-label" for="world-narrator">Narrator Style</label>
+          <label class="ai-decide-label">
+            <span>Custom Input</span>
+            <label class="toggle-switch">
+              <input type="checkbox" id="narrator-custom-toggle">
+              <span class="toggle-slider"></span>
+            </label>
+          </label>
+        </div>
+        <select id="world-narrator" class="select-field">
+          <option value="">Select a narrator style...</option>
+          <option value="Classic Fantasy Storyteller">Classic Fantasy Storyteller</option>
+          <option value="Gritty Noir Detective">Gritty Noir Detective</option>
+          <option value="Witty & Sarcastic Companion">Witty & Sarcastic Companion</option>
+          <option value="Dark & Atmospheric Horror">Dark & Atmospheric Horror</option>
+          <option value="Epic Cinematic Narrator">Epic Cinematic Narrator</option>
+          <option value="Warm & Romantic Bard">Warm & Romantic Bard</option>
+          <option value="Minimalist & Direct">Minimalist & Direct</option>
+          <option value="Mysterious & Cryptic Oracle">Mysterious & Cryptic Oracle</option>
+        </select>
+        <input type="text" id="world-narrator-custom" class="input-field" placeholder="Describe your preferred narrator style..." style="display: none; margin-top: 8px;">
+      </div>
+
+      <div class="world-field-group">
+        <div class="world-field-header">
           <label class="world-field-label" for="world-details">World Details</label>
           <label class="ai-decide-label">
             <span>Let AI Decide</span>
